@@ -212,9 +212,14 @@
 
 /********************** Upgrade ****************************/
 /*
+ * upgrade
+ */
+#define FTS_UPGRADE_EN                          0
+
+/*
  * auto upgrade
  */
-#define FTS_AUTO_UPGRADE_EN                     1
+#define FTS_AUTO_UPGRADE_EN                     0
 
 /*
  * auto upgrade for lcd cfg
@@ -224,7 +229,7 @@
 /*
  * Numbers of modules support
  */
-#define FTS_GET_MODULE_NUM                      2
+#define FTS_GET_MODULE_NUM                      0
 
 /*
  * module_id: mean vendor_id generally, also maybe gpio or lcm_id...
@@ -245,8 +250,8 @@
  * You should rename fw to "focaltech_ts_fw_tianma", and push it into
  * etc/firmware or by customers
  */
-#define FTS_MODULE_NAME                        "gvo"
-#define FTS_MODULE2_NAME                       "jdi"
+#define FTS_MODULE_NAME                        ""
+#define FTS_MODULE2_NAME                       ""
 #define FTS_MODULE3_NAME                       ""
 
 /*
