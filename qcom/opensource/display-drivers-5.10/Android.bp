@@ -13,7 +13,7 @@ display_headers_out = [
 
 display_kernel_headers_verbose = "--verbose "
 genrule {
-    name: "qti_generate_display_kernel_headers",
+    name: "qti_generate_display_kernel_headers_5_10",
     tools: [
         "headers_install.sh",
         "unifdef"
@@ -33,9 +33,9 @@ genrule {
 }
 
 cc_library_headers {
-    name: "qti_display_kernel_headers",
-    generated_headers: ["qti_generate_display_kernel_headers"],
-    export_generated_headers: ["qti_generate_display_kernel_headers"],
+    name: "qti_display_kernel_headers_5_10",
+    generated_headers: ["qti_generate_display_kernel_headers_5_10"],
+    export_generated_headers: ["qti_generate_display_kernel_headers_5_10"],
     vendor: true,
     recovery_available: true
 }
