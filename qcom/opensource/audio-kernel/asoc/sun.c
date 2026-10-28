@@ -27,6 +27,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/info.h>
+#include <sound/jack.h>
 #include <soc/snd_event.h>
 #include <dsp/audio_prm.h>
 #include <soc/swr-common.h>
@@ -447,6 +448,30 @@ static int msm_wcn_init(struct snd_soc_pcm_runtime *rtd)
     return ret;
 }
 #endif
+
+#define ES8326_MCLK_FREQ 12288000
+
+static int msm_es8326_dai_link_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	int ret = 0;
+
+	if (!codec_dai) {
+		pr_err("%s: codec_dai is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, ES8326_MCLK_FREQ,
+				      SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		pr_err("%s: failed to set es8326 sysclk, ret=%d\n",
+			__func__, ret);
+		return ret;
+	}
+
+	msm_common_dai_link_init(rtd);
+	return ret;
+}
 
 static struct snd_info_entry *msm_snd_info_create_subdir(struct module *mod,
 				const char *name,
@@ -1147,8 +1172,9 @@ static struct snd_soc_dai_link msm_mi2s_dai_links[] = {
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			SND_SOC_DPCM_TRIGGER_POST},
 		.ops = &msm_common_be_ops,
-		.ignore_suspend = 1,
+		.ignore_suspend = 0,
 		.ignore_pmdown_time = 1,
+		.init = &msm_es8326_dai_link_init,
 		SND_SOC_DAILINK_REG(quat_mi2s_rx),
 	},
 	{
@@ -1158,7 +1184,8 @@ static struct snd_soc_dai_link msm_mi2s_dai_links[] = {
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			SND_SOC_DPCM_TRIGGER_POST},
 		.ops = &msm_common_be_ops,
-		.ignore_suspend = 1,
+		.ignore_suspend = 0,
+		.init = &msm_es8326_dai_link_init,
 		SND_SOC_DAILINK_REG(quat_mi2s_tx),
 	},
 	{
@@ -1546,6 +1573,51 @@ static const struct of_device_id sun_asoc_machine_of_match[]  = {
 	{},
 };
 
+static struct snd_soc_jack es8326_hs_jack;
+
+static int msm_snd_es8326_jack_init(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_component *component = NULL;
+	struct snd_soc_dai_link_component *codec;
+	int ret;
+
+	for_each_card_rtds(card, rtd) {
+		if (!rtd->dai_link->num_codecs)
+			continue;
+		codec = &rtd->dai_link->codecs[0];
+		if ((codec->name && !strcmp(codec->name, "es8326_codec")) ||
+		    (codec->of_node &&
+		     of_device_is_compatible(codec->of_node, "everest,es8326"))) {
+			component = asoc_rtd_to_codec(rtd, 0)->component;
+			break;
+		}
+	}
+	if (!component) {
+		pr_err("%s: es8326_codec component not found\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = snd_soc_card_jack_new(card, "Headset Jack",
+				     SND_JACK_HEADSET | SND_JACK_BTN_0 |
+				     SND_JACK_BTN_1 | SND_JACK_BTN_2 |
+				     SND_JACK_BTN_3,
+				     &es8326_hs_jack);
+	if (ret) {
+		dev_err(component->dev,
+			"%s: failed to create es8326 headset jack, err:%d\n",
+			__func__, ret);
+		return ret;
+	}
+
+	snd_jack_set_key(es8326_hs_jack.jack, SND_JACK_BTN_0, KEY_MEDIA);
+	snd_jack_set_key(es8326_hs_jack.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
+	snd_jack_set_key(es8326_hs_jack.jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
+	snd_jack_set_key(es8326_hs_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
+
+	return snd_soc_component_set_jack(component, &es8326_hs_jack, NULL);
+}
+
 static int msm_snd_card_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component = NULL;
@@ -1560,7 +1632,7 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 		return -EINVAL;
 
 	if (pdata->wcd_disabled)
-		return 0;
+		return msm_snd_es8326_jack_init(card);
 
 	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	if (!rtd) {
