@@ -376,3 +376,17 @@ ifneq ($(CONFIG_ARCH_PINEAPPLE), y)
 	endif
 
 endif # pineapple
+
+ifeq ($(CONFIG_AWINIC_HAPTIC_HV), y)
+	haptic-y := \
+		./haptic/aw8671x.o \
+		./haptic/aw8672x.o \
+		./haptic/aw869x.o \
+		./haptic/aw8692x.o \
+		./haptic/aw8693x.o \
+		./haptic/aw8693xs.o \
+		./haptic/aw869xx.o \
+		./haptic/haptic_hv.o
+
+	obj-$(CONFIG_MSM_TOUCH) += haptic.o
+endif
